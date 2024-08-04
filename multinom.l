@@ -123,6 +123,7 @@ int main( int argc, char *argv[]  )
 {
     int wc_pid;
     int wc_pfd[2];
+    int chldstatus;
     FILE *in;
 
     if (pipe( wc_pfd ) < 0 ) {
@@ -132,19 +133,40 @@ int main( int argc, char *argv[]  )
     }
 
     wc_pid = fork(  );
-    if ( wc_pid == 0 ) {
+    if ( wc_pid == 0 ) { /* child */
         close( wc_pfd[0] );
+        long numbytes = fpathconf(wc_pfd[1],_PC_PIPE_BUF) ;
+        if ( numbytes < 0 ) {
+            close( wc_pfd[1] );
+            fprintf(stderr,"fpathconf didn't return anything sensible: %s\n",strerror(errno));
+            return 1;
+        }
+        LOG("_PC_PIPE_BUF == %ld\n",numbytes );
+
         dup2( wc_pfd[1], 1 );
 
         argv++;
         for (int i = argc ; i>1;i--) {
-            printf("%s ", *argv );
-            argv++;
+            numbytes -= strlen(*argv) ;
+            if (numbytes > 0 ) {
+                printf("%s ", *argv );
+                argv++;
+            } else {
+                fprintf(stderr, "Error: argument string  too long, maximum is %ld bytes\n",numbytes);
+                close( wc_pfd[1] );
+                return 1;
+            }
         }
         printf("\n") ;
         return 0;
     }
-    waitpid( wc_pid, NULL, 0 );
+    waitpid( wc_pid, &chldstatus, 0 );
+    if (WIFEXITED(chldstatus)){
+      if (WEXITSTATUS(chldstatus)) {
+        fprintf(stderr,"There were problems parsing the command line. Exiting!\n");
+        return 1;
+      }
+    }
     close( wc_pfd[1] );
     in = fdopen( wc_pfd[0], "r" );
     if (dup2(fileno(in),0) == -1) {
