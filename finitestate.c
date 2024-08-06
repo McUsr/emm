@@ -40,60 +40,62 @@
  *
  */
 
-typedef enum {S_START, S_OPERAND, S_OP_OR_RP, S_PWR } fsm_state ;
+typedef enum { S_START, S_OPERAND, S_OP_OR_RP, S_PWR } fsm_state;
 
-validity validator( int item_type, int *nrvars, int *nrops, int *nritems)
+validity validator( int item_type, int *nrvars, int *nrops, int *nritems )
 {
-    // update after?
-    static fsm_state next_state=S_START;
-    validity ret=FAIL;
-    switch (next_state) {
-        case S_START: {
-            if (item_type == LEFT_P ) {
-                next_state = S_OPERAND ;
-                ret= OK ;
+   // update after?
+    static fsm_state next_state = S_START;
+    validity ret = FAIL;
+    switch ( next_state ) {
+    case S_START:{
+            if ( item_type == LEFT_P ) {
+                next_state = S_OPERAND;
+                ret = OK;
             } else {
-                ret= FAIL ;
+                ret = FAIL;
             }
             break;
         }
-        case S_OPERAND: {
-            if (item_type == OPERAND ) {
-                (*nritems)++;
-                (*nrvars)++;
+    case S_OPERAND:{
+            if ( item_type == OPERAND ) {
+                ( *nritems )++;
+                ( *nrvars )++;
                 next_state = S_OP_OR_RP;
-                ret= OK ;
+                ret = OK;
             } else {
-                ret= FAIL ;
+                ret = FAIL;
             }
             break;
         }
-        case S_OP_OR_RP: {
-            if (item_type == RIGHT_P ) {
-                    next_state =  S_PWR ;
-                    ret= OK ;
-            } else if (item_type == OPERATOR ) { /* some work with my type hierarchy needed! */
-                    (*nritems)++;
-                    (*nrops)++;
-                    next_state =  S_OPERAND ;
-                    ret= OK ;
+    case S_OP_OR_RP:{
+            if ( item_type == RIGHT_P ) {
+                next_state = S_PWR;
+                ret = OK;
+            } else if ( item_type == OPERATOR ) { /* some work with my type
+                                                     hierarchy needed! */
+                ( *nritems )++;
+                ( *nrops )++;
+                next_state = S_OPERAND;
+                ret = OK;
             } else {
-                ret= FAIL ;
-            }
-            break;      
-        }
-        case S_PWR: {
-            if (item_type == PWR_V ) {
-                (*nritems)++;
-                ret= ACCEPT;
+                ret = FAIL;
             }
             break;
         }
-        default:
-                ret= FAIL ;
+    case S_PWR:{
+            if ( item_type == PWR_V ) {
+                ( *nritems )++;
+                ret = ACCEPT;
+            }
+            break;
+        }
+    default:
+        ret = FAIL;
     }
     return ret;
 }
+
 /* 
  * This statemmachine to be included in the lex file.
  * purpose to be sure of the definitions  and stuff.
@@ -109,5 +111,3 @@ validity validator( int item_type, int *nrvars, int *nrops, int *nritems)
  */
 
 /* Later, we generate a sign  */
-
-
