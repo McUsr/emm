@@ -123,12 +123,11 @@ int yywrap( void )
     return 1;
 }
 
-// trims the command line for extranous whitespace
-// and validates that it isn't too long.
-
-#define MIN(x,y) \
-    (x) < (y) ? x : y ;
-
+/*  
+    trims the command line for extranous whitespace
+    and assures that it isn't longer than the treshold, which in 
+    this case is YY_BUF_SIZE.
+*/
 int print_cmdln( int argc, char *argv[], int treshold, int *consumed)
 {
     int numbytes=treshold;
@@ -283,7 +282,6 @@ int main( int argc, char *argv[] )
     int *coeffs = NULL,
         exponent = 0;
 
-#if 1 == 1
     int item_type,
      nrvars = 0,
         nrops = 0;
@@ -370,10 +368,6 @@ int main( int argc, char *argv[] )
 
         }
     }
-#else
-    yylex(  );
-/* } */
-#endif
     fclose( in );
     close( wc_pfd[0] );
     return 0;
