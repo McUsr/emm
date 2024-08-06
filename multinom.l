@@ -147,10 +147,10 @@ int print_cmdln( int argc, char *argv[], int treshold, int *consumed)
         }
 
         while (**argv) {
-            if (isspace(**argv)) {
+            if (isspace((unsigned char)**argv)) {
                 *(strbuf++) = SPACE ;
                 (*argv)++;
-                while (isspace(**argv)) {
+                while (isspace((unsigned char)**argv)) {
                     (*argv)++;
                 }
             } else {
