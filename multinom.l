@@ -115,194 +115,212 @@ rightp ")"
 
 %%
 
-int yywrap(void) {
+
+int yywrap( void )
+{
     return 1;
 }
 
-int main( int argc, char *argv[]  )
+int main( int argc, char *argv[] )
 {
     int wc_pid;
     int wc_pfd[2];
     int chldstatus;
     FILE *in;
 
-    if (pipe( wc_pfd ) < 0 ) {
-        fprintf(stderr, "Can't set up the pipe: %s\n",strerror(errno));
-        fprintf(stderr,"Exiting!\n");
-        exit(EXIT_FAILURE);
+    if ( argc < 2 ) {
+        fprintf( stderr, "%s: Usage: \"%s '(a -2b +c)^4'\"\n", *argv, *argv );
+        fprintf( stderr, "You need to supply a bi/multinomial to expand. Exiting\n");
+        exit( EXIT_FAILURE );
+    }
+
+    if ( pipe( wc_pfd ) < 0 ) {
+        fprintf( stderr, "Can't set up the pipe: %s\n", strerror( errno ) );
+        fprintf( stderr, "Exiting!\n" );
+        exit( EXIT_FAILURE );
     }
 
     wc_pid = fork(  );
     if ( wc_pid == 0 ) { /* child */
         close( wc_pfd[0] );
-        long numbytes = fpathconf(wc_pfd[1],_PC_PIPE_BUF) ;
-        if ( numbytes < 0 ) {
-            close( wc_pfd[1] );
-            fprintf(stderr,"fpathconf didn't return anything sensible: %s\n",strerror(errno));
-            return 1;
+        if ( dup2( wc_pfd[1], 1 ) < 0 ) {
+            fprintf( stderr, "child couldn't duplicate write end of pipe: %s\n", strerror( errno ) );
+            return 2;
         }
-        LOG("_PC_PIPE_BUF == %ld\n",numbytes );
 
-        dup2( wc_pfd[1], 1 );
-
+        int numbytes = YY_BUF_SIZE;
+        int treshold = numbytes;
         argv++;
-        for (int i = argc ; i>1;i--) {
-            numbytes -= strlen(*argv) ;
-            if (numbytes > 0 ) {
-                printf("%s ", *argv );
+        for ( int i = argc; i > 1; i-- ) {
+            numbytes -= strlen( *argv );
+            if ( numbytes > 0 ) {
+                printf( "%s ", *argv );
                 argv++;
             } else {
-                fprintf(stderr, "Error: argument string  too long, maximum is %ld bytes\n",numbytes);
-                close( wc_pfd[1] );
+                fprintf( stderr, "Error: argument string  too long, maximum is %ld bytes\n", numbytes );
                 return 1;
             }
         }
-        printf("\n") ;
+        printf( "\n" );
         return 0;
     }
     waitpid( wc_pid, &chldstatus, 0 );
-    if (WIFEXITED(chldstatus)){
-      if (WEXITSTATUS(chldstatus)) {
-        fprintf(stderr,"There were problems parsing the command line. Exiting!\n");
+    if ( close( wc_pfd[1] ) < 0 ) {
+        fprintf( stderr, "parent couldn't close write end of pipe: %s\n", strerror( errno ) );
         return 1;
-      }
     }
-    close( wc_pfd[1] );
+    if ( WIFEXITED( chldstatus ) ) {
+        int ret_code = WEXITSTATUS( chldstatus );
+        if ( ret_code ) {
+            switch ( ret_code ) {
+            case 1:
+                fprintf( stderr, "There were problems with parsing the command line. Exiting!\n" );
+                break;
+            case 2:
+                fprintf( stderr, "There were problems with system calls during parsing the command line. Exiting!\n" );
+                break;
+            default:
+                ;
+            }
+            return 1;
+        }
+    }
     in = fdopen( wc_pfd[0], "r" );
-    if (dup2(fileno(in),0) == -1) {
-        perror(strerror(errno));
-        exit(EXIT_FAILURE);
+    if ( dup2( fileno( in ), 0 ) == -1 ) {
+        perror( strerror( errno ) );
+        exit( EXIT_FAILURE );
     }
-    int treshold = YY_BUF_SIZE ;
-    char *argstr=calloc((YY_BUF_SIZE+1),1); ;
+    int treshold = YY_BUF_SIZE;
+    char *argstr = calloc( ( YY_BUF_SIZE + 1 ), 1 );;
     if ( argstr == NULL ) {
-        fprintf(stderr,"argstr: Out of memory, exiting\n");
-        exit(EXIT_FAILURE);
+        fprintf( stderr, "argstr: Out of memory, exiting\n" );
+        exit( EXIT_FAILURE );
     }
     argv++;
-    for (int i = argc ; i>1;i--) {
-        if (i<argc) {
-            argstr=strcat(argstr," ");
+    for ( int i = argc; i > 1; i-- ) {
+        if ( i < argc ) {
+            argstr = strcat( argstr, " " );
         }
-        argstr=strncat(argstr,*argv,treshold);
-        treshold -= strlen(*argv);
+        argstr = strncat( argstr, *argv, treshold );
+        treshold -= strlen( *argv );
         argv++;
     }
-    int arrlen = strlen(argstr) -3 ; 
-    /*  can trim whitespace  and remove 2 parens and a caret,
-        and max(div 2 + 1, 1)!
+    int arrlen = strlen( argstr ) - 3;
+   /* can trim whitespace and remove 2 parens and a caret, and max(div 2 + 1,
+      1)! */
+    printf( "%s", argstr );
+    free( argstr );
+    LOG( "number of elements we can store in the array is %d\n", arrlen );
+   /* initial array size, - superluos, left/right parentheses and power symbol. 
     */
-    printf("%s",argstr);
-    free(argstr);
-    LOG("number of elements we can store in the array is %d\n",arrlen);
-    /* initial array size, - superluos, left/right parentheses and power symbol. */
-    nodeTable = malloc(arrlen * sizeof(nodeType *));
+    nodeTable = malloc( arrlen * sizeof( nodeType * ) );
 
     if ( nodeTable == NULL ) {
-        fprintf(stderr,"nodeTable: Out of memory, exiting\n");
-        exit(EXIT_FAILURE);
+        fprintf( stderr, "nodeTable: Out of memory, exiting\n" );
+        exit( EXIT_FAILURE );
     }
 
-    /* 
-    Arrays we'll transfer data to, that will work in parallel with the permutations table.
-    */
-    char *vars=NULL, *ops=NULL;
-    int *coeffs=NULL,exponent=0;
+   /* 
+      Arrays we'll transfer data to, that will work in parallel with the
+      permutations table. */
+    char *vars = NULL,
+        *ops = NULL;
+    int *coeffs = NULL,
+        exponent = 0;
 
 #if 1 == 1
-    int item_type, nrvars=0,nrops=0;
+    int item_type,
+     nrvars = 0,
+        nrops = 0;
     validity end_cond;
-     /* We parse the input through lex, validate the items in the validator
-     and only then do we insert the items which are dynamically allocated tagged structs
-     into the nodeTable.*/
-    PARSING_STAGE = true ;
-    if (atexit(lexer_exit) != 0) {
-        fprintf(stderr,
-          "Something awfully wrong, couldn't install exit handler for lexer!\n");
-        exit(EXIT_FAILURE);
+   /* We parse the input through lex, validate the items in the validator and
+      only then do we insert the items which are dynamically allocated tagged
+      structs into the nodeTable. */
+    PARSING_STAGE = true;
+    if ( atexit( lexer_exit ) != 0 ) {
+        fprintf( stderr, "Something awfully wrong, couldn't install exit handler for lexer!\n" );
+        exit( EXIT_FAILURE );
     }
-    while ((item_type = yylex()) != 0 ) {
-        if ((end_cond = validator(item_type,&nrvars,&nrops,&nritems)) == OK) {
-            consumed_text += yyleng ;
-            LOG("STATUS == OK ");
-            switch (item_type) {
-                case OPERAND:
-                    LOG(" OPERAND \n");
-                    break;
-                case OPERATOR: 
-                    LOG(" OPERATOR \n");
-                    break;
-                case PWR_V:
-                    LOG(" POWER \n");
-                    break;
-                default:
-                    LOG("\n");
+    while ( ( item_type = yylex(  ) ) != 0 ) {
+        if ( ( end_cond = validator( item_type, &nrvars, &nrops, &nritems ) ) == OK ) {
+            consumed_text += yyleng;
+            LOG( "STATUS == OK " );
+            switch ( item_type ) {
+            case OPERAND:
+                LOG( " OPERAND \n" );
+                break;
+            case OPERATOR:
+                LOG( " OPERATOR \n" );
+                break;
+            case PWR_V:
+                LOG( " POWER \n" );
+                break;
+            default:
+                LOG( "\n" );
             }
-            switch (item_type) {
-                case OPERAND:
-                case OPERATOR: 
-                case PWR_V:
-                    nodeTable[(nritems-1)] = yylval ;
-                    break;
-                default:
-                    ;
+            switch ( item_type ) {
+            case OPERAND:
+            case OPERATOR:
+            case PWR_V:
+                nodeTable[( nritems - 1 )] = yylval;
+                break;
+            default:
+                ;
             }
-            /* into struct with yylval? */
+           /* into struct with yylval? */
             continue;
-        } else if (end_cond == FAIL ) {
-            syntax_err(NULL);
-            /* Could have saved the last state, and figured what was amiss. */
-            LOG("STATUS == FAIL\n");
+        } else if ( end_cond == FAIL ) {
+            syntax_err( NULL );
+           /* Could have saved the last state, and figured what was amiss. */
+            LOG( "STATUS == FAIL\n" );
             break;
-        } else if (end_cond == ACCEPT )  {
-            PARSING_STAGE = false ;
-            printf(" =\n"); 
-            nodeTable[(nritems-1)] = yylval ;
-            LOG("STATUS == ACCEPT POWER:  we got %d items in the table:\n",nritems);
-            LOG("And we got %d varss  and %d operrators in the table:\n",nrvars,nrops);
+        } else if ( end_cond == ACCEPT ) {
+            PARSING_STAGE = false;
+            printf( " =\n" );
+            nodeTable[( nritems - 1 )] = yylval;
+            LOG( "STATUS == ACCEPT POWER:  we got %d items in the table:\n", nritems );
+            LOG( "And we got %d varss  and %d operrators in the table:\n", nrvars, nrops );
 
-            exponent=make_vartables(nritems,nodeTable,
-                 nrvars, nrops,  &vars, &coeffs, &ops);
+            exponent = make_vartables( nritems, nodeTable, nrvars, nrops, &vars, &coeffs, &ops );
 
-            LOG("Factor data: \n");
-            for (int i=0;i<nrvars;i++) {
-                LOG("%d%c\n",coeffs[i],vars[i]);
+            LOG( "Factor data: \n" );
+            for ( int i = 0; i < nrvars; i++ ) {
+                LOG( "%d%c\n", coeffs[i], vars[i] );
             }
-            yylval = NULL ;
-            LOG("exponent == %d\n",exponent);
-            /* Time to free the nodeTable */
-            for (int i=0;i<nritems;i++) {
-                free(nodeTable[i]) ;
+            yylval = NULL;
+            LOG( "exponent == %d\n", exponent );
+           /* Time to free the nodeTable */
+            for ( int i = 0; i < nritems; i++ ) {
+                free( nodeTable[i] );
             }
-            free(nodeTable) ;
-            /* this is where we call make_permtable()
-                It is a great idea to return the number of rows.
-            */
+            free( nodeTable );
+           /* this is where we call make_permtable() It is a great idea to
+              return the number of rows. */
             int *terms_table;
 
-            int terms_rows = mk_permtable(nrvars,exponent,&terms_table);
-            if (terms_rows == -1 ) {
-                 free_vartables(&vars, &coeffs,&ops);
-                 fclose( in );
-                 close(wc_pfd[0]);
-                exit(EXIT_FAILURE);
+            int terms_rows = mk_permtable( nrvars, exponent, &terms_table );
+            if ( terms_rows == -1 ) {
+                free_vartables( &vars, &coeffs, &ops );
+                fclose( in );
+                close( wc_pfd[0] );
+                exit( EXIT_FAILURE );
             }
 
-            adjust_coeffs(nrvars,coeffs, ops) ;
-            // print_term_tbl(nrvars, exponent, terms_table,  terms_rows);
-            expand_expr(terms_rows, nrvars, terms_table, vars, coeffs);
-            /* free_vartables(&vars, &coeffs,&ops); */
-            free(terms_table);
-            free_vartables(&vars, &coeffs,&ops);
-            
+            adjust_coeffs( nrvars, coeffs, ops );
+           // print_term_tbl(nrvars, exponent, terms_table, terms_rows);
+            expand_expr( terms_rows, nrvars, terms_table, vars, coeffs );
+           /* free_vartables(&vars, &coeffs,&ops); */
+            free( terms_table );
+            free_vartables( &vars, &coeffs, &ops );
+
         }
     }
 #else
-    yylex();
+    yylex(  );
 /* } */
 #endif
     fclose( in );
-    close(wc_pfd[0]);
+    close( wc_pfd[0] );
     return 0;
 }
 /*
