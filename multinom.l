@@ -51,11 +51,11 @@ static void log_msg(const char *format, ...) ;
 
 static bool doprint=false;
 static void log_msg(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  if (doprint)
-      vfprintf(stderr, format, args);
-  va_end(args);
+    va_list args;
+    va_start(args, format);
+    if (doprint)
+        vfprintf(stderr, format, args);
+    va_end(args);
 }
 int consumed_text=0, ignored_spaces=0;
 int nritems=0;
