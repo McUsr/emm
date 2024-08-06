@@ -51,7 +51,10 @@ static void log_msg(const char *format, ...) {
 
 static unsigned fact_too_big_param = 0 ;
 
-
+/* 
+ * Truly fixed detecting overflows and underflows  thanks to u/inz_ 
+ * This can be done better I'm sure though.
+ */
 int power(int base, int exp)
 {
     assert (exp >= 0 );
@@ -67,7 +70,6 @@ int power(int base, int exp)
     if (!( base < 0 && exp % 2 ))  {
         int adj_base = ( base > 0 ) ? base : (base * -1 ) ;
         for (int i = 1;i<=exp;i++ ) {
-
             if (  result > INT_MAX / adj_base ) {
                 fprintf(stderr, "power:"
                        " integer overflow when raising"
@@ -76,7 +78,7 @@ int power(int base, int exp)
                 exit(EXIT_FAILURE);
                 break ;
             } else {
-                result *= base ;
+                result *= adj_base ;
             }
         }
     } else {
@@ -92,12 +94,13 @@ int power(int base, int exp)
                 break ;
             } else {
                 result *= base ;
+                if (result > 0) {
+                    result *= -1;
+                }
+
             }
         }
-
     }
-
-
     return (int) result ;
 }
 
