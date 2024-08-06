@@ -34,7 +34,9 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <ctype.h>
 #include "multinom.h"
+#define SPACE ' '
 
 #define YY_BUF_SIZE 1024
 /* There will still be a small amount unreachable memory! */
@@ -121,6 +123,67 @@ int yywrap( void )
     return 1;
 }
 
+// trims the command line for extranous whitespace
+// and validates that it isn't too long.
+
+#define MIN(x,y) \
+    (x) < (y) ? x : y ;
+
+int print_cmdln( int argc, char *argv[], int treshold, int *consumed)
+{
+    int numbytes=treshold;
+
+    ++argv;
+    for (int i = argc ; i>1;i--) {
+         int len = strlen(*argv) ;
+        char *buf = calloc(len +1,1 );
+        if (buf == NULL) {
+            fprintf(stderr,"print_cmdln: Error: malloc() Out Of Memory. Exiting\n");
+            return 1;
+        }
+        char *strbuf = buf;
+
+        if (i<argc) {
+            *(strbuf++) = SPACE ; 
+        }
+
+        while (**argv) {
+            if (isspace(**argv)) {
+                *(strbuf++) = SPACE ;
+                (*argv)++;
+                while (isspace(**argv)) {
+                    (*argv)++;
+                }
+            } else {
+                *strbuf = **argv ;
+                strbuf++;
+                (*argv)++;
+            }
+        }
+
+        int buflen = strlen(buf);
+
+        if (buf[buflen-1] == SPACE ) {
+            buf[buflen-1] = '\0' ;
+            buflen--;
+        }            
+        *consumed += buflen ; // newline not part of the argstrlength capacity equation.
+        treshold -= (buflen + (i>2) ? 0 : 1  );
+        //  we add the newline after the last argument (u/inz_)
+        if (treshold > 0 ) {
+            printf("%s",buf);
+            free(buf);    
+        } else {
+            fprintf(stderr, "print_cmdln: Error: argument string  too long, maximum is %d bytes\n",numbytes);
+            free(buf);    
+            return 1;
+        }
+
+        argv++;
+    }
+    return 0;
+}
+
 int main( int argc, char *argv[] )
 {
     int wc_pid;
@@ -141,28 +204,32 @@ int main( int argc, char *argv[] )
     }
 
     wc_pid = fork(  );
-    if ( wc_pid == 0 ) { /* child */
+    if ( wc_pid < 0 ) {
+        fprintf( stderr, "Can't fork child process: %s\n", strerror( errno ) );
+        fprintf( stderr, "Exiting!\n" );
+        exit( EXIT_FAILURE );
+
+    } else if ( wc_pid == 0 ) { /* child */
         close( wc_pfd[0] );
         if ( dup2( wc_pfd[1], 1 ) < 0 ) {
             fprintf( stderr, "child couldn't duplicate write end of pipe: %s\n", strerror( errno ) );
             return 2;
         }
 
-        int numbytes = YY_BUF_SIZE;
-        int treshold = numbytes;
-        argv++;
-        for ( int i = argc; i > 1; i-- ) {
-            numbytes -= strlen( *argv );
-            if ( numbytes > 0 ) {
-                printf( "%s ", *argv );
-                argv++;
-            } else {
-                fprintf( stderr, "Error: argument string  too long, maximum is %ld bytes\n", numbytes );
-                return 1;
-            }
+        long numbytes = fpathconf(wc_pfd[1],_PC_PIPE_BUF) ;
+        if ( numbytes < 0 ) {
+            fprintf(stderr,"fpathconf didn't return anything sensible: %s\n",strerror(errno));
+            return 2;
+        } else if (YY_BUF_SIZE > numbytes) {
+            fprintf(stderr,"YY_BUF_SIZE > _PC_PIPE_BUF: you need to reconfigure YY_BUF_SIZE > %ld\n",numbytes);
+            return 2;
         }
-        printf( "\n" );
-        return 0;
+        int ret_code, dummy=0;
+        ret_code= print_cmdln( argc, argv, YY_BUF_SIZE, &dummy) ;
+        if (!ret_code) {
+            printf("\n");
+        }
+        return ret_code;
     }
     waitpid( wc_pid, &chldstatus, 0 );
     if ( close( wc_pfd[1] ) < 0 ) {
@@ -190,29 +257,17 @@ int main( int argc, char *argv[] )
         perror( strerror( errno ) );
         exit( EXIT_FAILURE );
     }
-    int treshold = YY_BUF_SIZE;
-    char *argstr = calloc( ( YY_BUF_SIZE + 1 ), 1 );;
-    if ( argstr == NULL ) {
-        fprintf( stderr, "argstr: Out of memory, exiting\n" );
-        exit( EXIT_FAILURE );
+
+    int arrlen = 0;
+    if (print_cmdln( argc, argv, YY_BUF_SIZE, &arrlen)) {
+        exit(EXIT_FAILURE) ;
     }
-    argv++;
-    for ( int i = argc; i > 1; i-- ) {
-        if ( i < argc ) {
-            argstr = strcat( argstr, " " );
-        }
-        argstr = strncat( argstr, *argv, treshold );
-        treshold -= strlen( *argv );
-        argv++;
-    }
-    int arrlen = strlen( argstr ) - 3;
-   /* can trim whitespace and remove 2 parens and a caret, and max(div 2 + 1,
-      1)! */
-    printf( "%s", argstr );
-    free( argstr );
+    arrlen -= 3 ; /* subtracting for "(",")" and "^". */
+    arrlen = ((arrlen+1)/4)+1;
+    /* because there are one more than the operators, and there are two spaces
+       for each operator. so, this will be a pretty generous estimate. */
+
     LOG( "number of elements we can store in the array is %d\n", arrlen );
-   /* initial array size, - superluos, left/right parentheses and power symbol. 
-    */
     nodeTable = malloc( arrlen * sizeof( nodeType * ) );
 
     if ( nodeTable == NULL ) {
