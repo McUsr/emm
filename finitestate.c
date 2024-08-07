@@ -95,19 +95,3 @@ validity validator( int item_type, int *nrvars, int *nrops, int *nritems )
     }
     return ret;
 }
-
-/* 
- * This statemmachine to be included in the lex file.
- * purpose to be sure of the definitions  and stuff.
- */
-
-/* Altercations:
- * We need to keep the operators. to get things right, especially the negative ones.
- *
- * If it isn't the first operand, we'll need to check the operator, after we have resolved
- * the sign of the factor.
- * This meanns we will need a union, much like the one that yacc  would have been used for
- * yyval.
- */
-
-/* Later, we generate a sign  */
