@@ -6,7 +6,7 @@
 # And I have used gcc version 12.2  on X86-64.
 
 OBJS = multinom.o permtable.o mk_struct.o syntax_err.o finitestate.o\
-			 vartables.o expand_expr.o
+			 vartables.o expand_expr.o arguments.o
 
 LDFLAGS = -L/usr/local/lib/so64
 # where the flex library resides.
@@ -36,12 +36,16 @@ LINK := $(CC) $(CVERSION) $(CFLAGS) $(CPPFLAGS)
 LEX = lex
 
 
-.PHONY: all
+.PHONY: all 
 
-all: multinom
+all: multinom tags
 
 multinom: $(OBJS)
 
+
+tags:
+	ls *.c  | sed  '/\.[0-9]\./ d' >c-files
+	ctags -L c-files
 
 .PRECIOUS: multinom.c
 
