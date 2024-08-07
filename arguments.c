@@ -3,11 +3,12 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
+#include <getopt.h>
 #include "multinom.h"
 
 #define SPACE ' '
 
-void show_cmdln( char *prog_name)
+void show_usage( char *prog_name)
 {
   fprintf( stderr, "Usage: \"%s [-h|-p] (multinomial expression)^power.\"\n", basename(prog_name));
 }
@@ -81,6 +82,26 @@ int print_cmdln( int argc, char *argv[], int treshold, int *consumed, int start_
         argv++;
     }
     return 0;
+}
+/* parses any command line options. */
+int options( int argc, char *argv[] )
+{
+    int opt=0;
+    opt_tp ret_val= OPT_NONE ;
+
+    while ( ( opt = getopt( argc, argv, ":hp" ) ) != -1 ) {
+        switch ( opt ) {
+        case 'h':
+            ret_val = OPT_HELP;
+            break;
+        case 'p':
+            ret_val = OPT_PREPROCESS ;
+            break;
+        default: /* '?' */
+            ;
+        }
+    }
+    return ret_val;
 }
 #if 0 == 1
 int main(int argc, char *argv[])
