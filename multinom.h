@@ -129,5 +129,14 @@ void expand_expr(int terms_rows, int nr_vars, int *terms_table,
         char *vartable, int *coefftbl);
 void adjust_coeffs(int nr_vars,int *coefftbl, char *optbl);
 
+/* MODULE arguments.o */
+
+typedef enum { OPT_NONE=0,OPT_HELP,OPT_PREPROCESS} opt_tp;
+
+void show_usage( char *prog_name);
+void show_help(void );
+int print_cmdln( int argc, char *argv[], int treshold, int *consumed, int start_arg);
+int options( int argc, char *argv[] );
+
 #endif
 
