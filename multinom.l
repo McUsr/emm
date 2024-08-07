@@ -133,6 +133,7 @@ int print_cmdln( int argc, char *argv[], int treshold, int *consumed)
     int numbytes=treshold;
 
     ++argv;
+
     for (int i = argc ; i>1;i--) {
          int len = strlen(*argv) ;
         char *buf = calloc(len +1,1 );
@@ -211,13 +212,13 @@ int main( int argc, char *argv[] )
     } else if ( wc_pid == 0 ) { /* child */
         close( wc_pfd[0] );
         if ( dup2( wc_pfd[1], 1 ) < 0 ) {
-            fprintf( stderr, "child couldn't duplicate write end of pipe: %s\n", strerror( errno ) );
+            fprintf( stderr, "Child couldn't duplicate write end of pipe: %s\n", strerror( errno ) );
             return 2;
         }
 
         long numbytes = fpathconf(wc_pfd[1],_PC_PIPE_BUF) ;
         if ( numbytes < 0 ) {
-            fprintf(stderr,"fpathconf didn't return anything sensible: %s\n",strerror(errno));
+            fprintf(stderr,"Fpathconf didn't return anything sensible: %s\n",strerror(errno));
             return 2;
         } else if (YY_BUF_SIZE > numbytes) {
             fprintf(stderr,"YY_BUF_SIZE > _PC_PIPE_BUF: you need to reconfigure YY_BUF_SIZE > %ld\n",numbytes);
@@ -232,7 +233,7 @@ int main( int argc, char *argv[] )
     }
     waitpid( wc_pid, &chldstatus, 0 );
     if ( close( wc_pfd[1] ) < 0 ) {
-        fprintf( stderr, "parent couldn't close write end of pipe: %s\n", strerror( errno ) );
+        fprintf( stderr, "Parent couldn't close write end of pipe: %s\n", strerror( errno ) );
         return 1;
     }
     if ( WIFEXITED( chldstatus ) ) {
@@ -252,8 +253,15 @@ int main( int argc, char *argv[] )
         }
     }
     in = fdopen( wc_pfd[0], "r" );
+    if (in == NULL) {
+        fprintf( stderr, "Couldn't open an input stream from pipe[0]: %s. Exiting!\n", 
+                strerror(errno ));
+        exit( EXIT_FAILURE );
+    }
+
     if ( dup2( fileno( in ), 0 ) == -1 ) {
-        perror( strerror( errno ) );
+        fprintf( stderr, "Couldn't duplicate FILE* in, to standard input: %s. Exiting!\n", 
+                strerror(errno ));
         exit( EXIT_FAILURE );
     }
 
@@ -265,7 +273,6 @@ int main( int argc, char *argv[] )
     arrlen = ((arrlen+1)/4)+1;
     /* because there are one more than the operators, and there are two spaces
        for each operator. so, this will be a pretty generous estimate. */
-
     LOG( "number of elements we can store in the array is %d\n", arrlen );
     nodeTable = malloc( arrlen * sizeof( nodeType * ) );
 
