@@ -131,7 +131,7 @@ void adjust_coeffs(int nr_vars,int *coefftbl, char *optbl);
 
 /* MODULE arguments.o */
 
-typedef enum { OPT_NONE=0,OPT_HELP,OPT_PREPROCESS} opt_tp;
+typedef enum { OPT_BAD= -1,OPT_NONE=0,OPT_HELP,OPT_PREPROCESS} opt_tp;
 
 void show_usage( char *prog_name);
 void show_help(void );
