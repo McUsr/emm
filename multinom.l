@@ -35,8 +35,8 @@
 #include <stdbool.h>
 #include <limits.h>
 #include <ctype.h>
+#include <getopt.h> /* optind */
 #include "multinom.h"
-#define SPACE ' '
 
 #define YY_BUF_SIZE 1024
 /* There will still be a small amount unreachable memory! */
@@ -123,67 +123,6 @@ int yywrap( void )
     return 1;
 }
 
-/*  
-    trims the command line for extranous whitespace
-    and assures that it isn't longer than the treshold, which in 
-    this case is YY_BUF_SIZE.
-*/
-int print_cmdln( int argc, char *argv[], int treshold, int *consumed)
-{
-    int numbytes=treshold;
-
-    ++argv;
-
-    for (int i = argc ; i>1;i--) {
-         int len = strlen(*argv) ;
-        char *buf = calloc(len +1,1 );
-        if (buf == NULL) {
-            fprintf(stderr,"print_cmdln: Error: malloc() Out Of Memory. Exiting\n");
-            return 1;
-        }
-        char *strbuf = buf;
-
-        if (i<argc) {
-            *(strbuf++) = SPACE ; 
-        }
-
-        while (**argv) {
-            if (isspace((unsigned char)**argv)) {
-                *(strbuf++) = SPACE ;
-                (*argv)++;
-                while (isspace((unsigned char)**argv)) {
-                    (*argv)++;
-                }
-            } else {
-                *strbuf = **argv ;
-                strbuf++;
-                (*argv)++;
-            }
-        }
-
-        int buflen = strlen(buf);
-
-        if (buf[buflen-1] == SPACE ) {
-            buf[buflen-1] = '\0' ;
-            buflen--;
-        }            
-        *consumed += buflen ; // newline not part of the argstrlength capacity equation.
-        treshold -= (buflen + (i>2) ? 0 : 1  );
-        //  we add the newline after the last argument (u/inz_)
-        if (treshold > 0 ) {
-            printf("%s",buf);
-            free(buf);    
-        } else {
-            fprintf(stderr, "print_cmdln: Error: argument string  too long, maximum is %d bytes\n",numbytes);
-            free(buf);    
-            return 1;
-        }
-
-        argv++;
-    }
-    return 0;
-}
-
 int main( int argc, char *argv[] )
 {
     int wc_pid;
@@ -192,8 +131,8 @@ int main( int argc, char *argv[] )
     FILE *in;
 
     if ( argc < 2 ) {
-        fprintf( stderr, "%s: Usage: \"%s '(a -2b +c)^4'\"\n", *argv, *argv );
-        fprintf( stderr, "You need to supply a bi/multinomial to expand. Exiting\n");
+        show_cmdln(argv[0]);
+        fprintf( stderr, "Missing a multinomial  with a power to expand. Exiting.\n");
         exit( EXIT_FAILURE );
     }
 
@@ -225,7 +164,7 @@ int main( int argc, char *argv[] )
             return 2;
         }
         int ret_code, dummy=0;
-        ret_code= print_cmdln( argc, argv, YY_BUF_SIZE, &dummy) ;
+        ret_code= print_cmdln( argc, argv, YY_BUF_SIZE, &dummy, 1) ;
         if (!ret_code) {
             printf("\n");
         }
@@ -266,7 +205,7 @@ int main( int argc, char *argv[] )
     }
 
     int arrlen = 0;
-    if (print_cmdln( argc, argv, YY_BUF_SIZE, &arrlen)) {
+    if (print_cmdln( argc, argv, YY_BUF_SIZE, &arrlen, 1)) {
         exit(EXIT_FAILURE) ;
     }
     arrlen -= 3 ; /* subtracting for "(",")" and "^". */
