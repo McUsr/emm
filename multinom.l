@@ -34,7 +34,6 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <limits.h>
-#include <ctype.h>
 #include <getopt.h> /* optind */
 #include "multinom.h"
 
@@ -131,7 +130,7 @@ int main( int argc, char *argv[] )
     FILE *in;
 
     if ( argc < 2 ) {
-        show_cmdln(argv[0]);
+        show_usage(argv[0]);
         fprintf( stderr, "Missing a multinomial  with a power to expand. Exiting.\n");
         exit( EXIT_FAILURE );
     }
