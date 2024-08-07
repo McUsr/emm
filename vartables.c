@@ -31,7 +31,7 @@
  * so that we can expand the terms into something meaningful.
  * returns: the exponent.
  */
-int make_vartables( int nritems, nodeType ** nodeTable, int nrvars, int nrops, char **vars, int **coeffs, char **ops )
+int make_vartables( int nritems, itemData ** nodeTable, int nrvars, int nrops, char **vars, int **coeffs, char **ops )
 {
     int vars_c = 0,
         op_c = 0,
