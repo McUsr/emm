@@ -54,13 +54,15 @@ void show_help(void )
     and assures that it isn't longer than the treshold, which in 
     this case is YY_BUF_SIZE.
 */
-int print_cmdln_child( int argc, char *argv[], int treshold, int *consumed )
+int print_cmdln_child( int argc, char *argv[], int treshold, int *consumed, int arg_start )
 {
     int numbytes=treshold;
 
-    ++argv;
+    for (int i=0;i<arg_start;i++) {
+        ++argv;
+    }
 
-    for (int i = argc ; i>1;i--) {
+    for (int i = argc ; i>arg_start;i--) {
          int len = strlen(*argv) ;
         char *buf = calloc(len +1,1 );
         if (buf == NULL) {
@@ -110,29 +112,29 @@ int print_cmdln_child( int argc, char *argv[], int treshold, int *consumed )
     return 0;
 }
 
-int print_cmdln_parent( int argc, char *argv[],int *consumed)
-{
+/**
+ * TODO: print to stdout, so we can reimplement
+ * switches for bare output.
+ */
 
-    *consumed = 0;
+int print_cmdln_parent( int argc, char *argv[])
+{
     ++argv;
 
     for (int i = argc ; i>1;i--) {
         if (i<argc) {
             fprintf(stderr,"%c",SPACE); ; 
-            (*consumed)++;
         }
 
         while (**argv) {
             if (isspace((unsigned char)**argv)) {
                 fprintf(stderr,"%c",SPACE); ; 
                 (*argv)++;
-                (*consumed)++;
                 while (isspace((unsigned char)**argv)) {
                     (*argv)++;
                 }
             } else {
                 fprintf(stderr,"%c",**argv); ; 
-                (*consumed)++;
                 (*argv)++;
             }
         }
@@ -150,6 +152,9 @@ int options( int argc, char *argv[] )
         switch ( opt ) {
         case 'h':
             ret_val = OPT_HELP;
+            break;
+        case 'p':
+            ret_val = OPT_PREPROCESS;
             break;
         default: /* '?' */
             ret_val = OPT_BAD;
