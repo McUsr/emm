@@ -108,7 +108,6 @@ rightp ")"
 [\n]+ ;
 
 .                       { 
-                            fflush(stdout);
                             fprintf(stderr,"\n%*s^\n",(consumed_text+ignored_spaces)," ");
                             fprintf(stderr,"%*sSyntax error: Illegal character.\n",(consumed_text+ignored_spaces)," ");
                             exit(EXIT_FAILURE);
@@ -130,6 +129,28 @@ int main( int argc, char *argv[] )
     FILE *in;
 
     if ( argc < 2 ) {
+        show_usage(argv[0]);
+        fprintf( stderr, "Missing a multinomial  with a power to expand. Exiting.\n");
+        exit( EXIT_FAILURE );
+    }
+    int ret_val = options(argc,argv);
+
+    switch (ret_val) {
+    case OPT_NONE:
+        ;
+        break;
+    case OPT_HELP:
+        show_usage(argv[0]);
+        show_help();
+        exit(EXIT_SUCCESS);
+        break;
+    case OPT_BAD:
+        show_usage(argv[0]);
+        fprintf(stderr,"Non-existent option specified.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (optind == argc ) {
         show_usage(argv[0]);
         fprintf( stderr, "Missing a multinomial  with a power to expand. Exiting.\n");
         exit( EXIT_FAILURE );
@@ -163,17 +184,13 @@ int main( int argc, char *argv[] )
             return 2;
         }
         int ret_code, dummy=0;
-        ret_code= print_cmdln( argc, argv, YY_BUF_SIZE, &dummy, 1) ;
+        ret_code= print_cmdln_child( argc, argv, YY_BUF_SIZE, &dummy) ;
         if (!ret_code) {
             printf("\n");
         }
         return ret_code;
     }
     waitpid( wc_pid, &chldstatus, 0 );
-    if ( close( wc_pfd[1] ) < 0 ) {
-        fprintf( stderr, "Parent couldn't close write end of pipe: %s\n", strerror( errno ) );
-        return 1;
-    }
     if ( WIFEXITED( chldstatus ) ) {
         int ret_code = WEXITSTATUS( chldstatus );
         if ( ret_code ) {
@@ -190,6 +207,10 @@ int main( int argc, char *argv[] )
             return 1;
         }
     }
+    if ( close( wc_pfd[1] ) < 0 ) {
+        fprintf( stderr, "Parent couldn't close write end of pipe: %s\n", strerror( errno ) );
+        return 1;
+    }
     in = fdopen( wc_pfd[0], "r" );
     if (in == NULL) {
         fprintf( stderr, "Couldn't open an input stream from pipe[0]: %s. Exiting!\n", 
@@ -204,9 +225,11 @@ int main( int argc, char *argv[] )
     }
 
     int arrlen = 0;
-    if (print_cmdln( argc, argv, YY_BUF_SIZE, &arrlen, 1)) {
+
+    if (print_cmdln_parent( argc, argv, &arrlen)) {
         exit(EXIT_FAILURE) ;
     }
+
     arrlen -= 3 ; /* subtracting for "(",")" and "^". */
     arrlen = ((arrlen+1)/4)+1;
     /* because there are one more than the operators, and there are two spaces
@@ -274,7 +297,7 @@ int main( int argc, char *argv[] )
             break;
         } else if ( end_cond == ACCEPT ) {
             PARSING_STAGE = false;
-            printf( " =\n" );
+            fprintf(stderr, " =\n" );
             nodeTable[( nritems - 1 )] = yylval;
             LOG( "STATUS == ACCEPT POWER:  we got %d items in the table:\n", nritems );
             LOG( "And we got %d varss  and %d operrators in the table:\n", nrvars, nrops );

@@ -131,11 +131,12 @@ void adjust_coeffs(int nr_vars,int *coefftbl, char *optbl);
 
 /* MODULE arguments.o */
 
-typedef enum { OPT_BAD= -1,OPT_NONE=0,OPT_HELP,OPT_PREPROCESS} opt_tp;
+typedef enum { OPT_BAD= -1,OPT_NONE=0,OPT_HELP} opt_tp;
 
 void show_usage( char *prog_name);
 void show_help(void );
-int print_cmdln( int argc, char *argv[], int treshold, int *consumed, int start_arg);
+int print_cmdln_child( int argc, char *argv[], int treshold, int *consumed );
+int print_cmdln_parent( int argc, char *argv[], int *consumed);
 int options( int argc, char *argv[] );
 
 #endif
