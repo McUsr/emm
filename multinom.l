@@ -59,8 +59,8 @@ static void log_msg(const char *format, ...) {
 int consumed_text=0, ignored_spaces=0;
 int nritems=0;
 bool PARSING_STAGE=false; 
-nodeType **nodeTable;
-nodeType *yylval ;
+itemData **itemTable;
+itemData *yylval ;
 %}
 sign    [-+]{1}
 digits  [0-9]+
@@ -108,9 +108,13 @@ rightp ")"
 [\n]+ ;
 
 .                       { 
-                            fprintf(stderr,"\n%*s^\n",(consumed_text+ignored_spaces)," ");
-                            fprintf(stderr,"%*sSyntax error: Illegal character.\n",(consumed_text+ignored_spaces)," ");
-                            exit(EXIT_FAILURE);
+                            fflush(stdout);
+                            if ((int) *yytext != 17 ) {
+                                fprintf(stderr,"\n%*s^\n",(consumed_text+ignored_spaces)," ");
+                                fprintf(stderr,"%*sSyntax error: LEX: Illegal character.\n",(consumed_text+ignored_spaces)," ");
+                                fprintf(stderr,"\nIllegal character is %d\n",(int)*yytext);
+                                exit(EXIT_FAILURE);
+                            }
                         }
 
 %%
@@ -126,6 +130,7 @@ int main( int argc, char *argv[] )
     int wc_pid;
     int wc_pfd[2];
     int chldstatus;
+    bool no_preproc=true ;
     FILE *in;
 
     if ( argc < 2 ) {
@@ -143,6 +148,9 @@ int main( int argc, char *argv[] )
         show_usage(argv[0]);
         show_help();
         exit(EXIT_SUCCESS);
+        break;
+    case OPT_PREPROCESS:
+        no_preproc=false;
         break;
     case OPT_BAD:
         show_usage(argv[0]);
@@ -184,13 +192,17 @@ int main( int argc, char *argv[] )
             return 2;
         }
         int ret_code, dummy=0;
-        ret_code= print_cmdln_child( argc, argv, YY_BUF_SIZE, &dummy) ;
+        ret_code= print_cmdln_child( argc, argv, YY_BUF_SIZE, &dummy, optind) ;
         if (!ret_code) {
-            printf("\n");
+            printf("\n"); /* if 0, then we conlude the input line to lex with a \n" */
         }
         return ret_code;
     }
     waitpid( wc_pid, &chldstatus, 0 );
+    if ( close( wc_pfd[1] ) < 0 ) {
+        fprintf( stderr, "Parent couldn't close write end of pipe: %s\n", strerror( errno ) );
+        return 1;
+    }
     if ( WIFEXITED( chldstatus ) ) {
         int ret_code = WEXITSTATUS( chldstatus );
         if ( ret_code ) {
@@ -207,10 +219,6 @@ int main( int argc, char *argv[] )
             return 1;
         }
     }
-    if ( close( wc_pfd[1] ) < 0 ) {
-        fprintf( stderr, "Parent couldn't close write end of pipe: %s\n", strerror( errno ) );
-        return 1;
-    }
     in = fdopen( wc_pfd[0], "r" );
     if (in == NULL) {
         fprintf( stderr, "Couldn't open an input stream from pipe[0]: %s. Exiting!\n", 
@@ -224,31 +232,15 @@ int main( int argc, char *argv[] )
         exit( EXIT_FAILURE );
     }
 
-    int arrlen = 0;
-
-    if (print_cmdln_parent( argc, argv, &arrlen)) {
-        exit(EXIT_FAILURE) ;
-    }
-
-    arrlen -= 3 ; /* subtracting for "(",")" and "^". */
-    arrlen = ((arrlen+1)/4)+1;
+    int arrlen = 53;
     /* because there are one more than the operators, and there are two spaces
        for each operator. so, this will be a pretty generous estimate. */
     LOG( "number of elements we can store in the array is %d\n", arrlen );
-    nodeTable = malloc( arrlen * sizeof( nodeType * ) );
-
-    if ( nodeTable == NULL ) {
-        fprintf( stderr, "nodeTable: Out of memory, exiting\n" );
+    itemTable = malloc( arrlen * sizeof( itemData * ) );
+    if ( itemTable == NULL ) {
+        fprintf( stderr, "itemTable: Out of memory, exiting\n" );
         exit( EXIT_FAILURE );
     }
-
-   /* 
-      Arrays we'll transfer data to, that will work in parallel with the
-      permutations table. */
-    char *vars = NULL,
-        *ops = NULL;
-    int *coeffs = NULL,
-        exponent = 0;
 
     int item_type,
      nrvars = 0,
@@ -256,7 +248,7 @@ int main( int argc, char *argv[] )
     validity end_cond;
    /* We parse the input through lex, validate the items in the validator and
       only then do we insert the items which are dynamically allocated tagged
-      structs into the nodeTable. */
+      structs into the itemTable. */
     PARSING_STAGE = true;
     if ( atexit( lexer_exit ) != 0 ) {
         fprintf( stderr, "Something awfully wrong, couldn't install exit handler for lexer!\n" );
@@ -264,6 +256,7 @@ int main( int argc, char *argv[] )
     }
     while ( ( item_type = yylex(  ) ) != 0 ) {
         if ( ( end_cond = validator( item_type, &nrvars, &nrops, &nritems ) ) == OK ) {
+            assert( nritems <= arrlen ) ;
             consumed_text += yyleng;
             LOG( "STATUS == OK " );
             switch ( item_type ) {
@@ -283,7 +276,7 @@ int main( int argc, char *argv[] )
             case OPERAND:
             case OPERATOR:
             case PWR_V:
-                nodeTable[( nritems - 1 )] = yylval;
+                itemTable[( nritems - 1 )] = yylval;
                 break;
             default:
                 ;
@@ -296,13 +289,34 @@ int main( int argc, char *argv[] )
             LOG( "STATUS == FAIL\n" );
             break;
         } else if ( end_cond == ACCEPT ) {
+           /* 
+              Arrays we'll transfer data to, that will work in parallel with the
+              permutations table. */
+            char *vars = NULL, *ops = NULL;
+            int *coeffs = NULL, exponent = 0;
+
             PARSING_STAGE = false;
-            fprintf(stderr, " =\n" );
-            nodeTable[( nritems - 1 )] = yylval;
+
+            if (no_preproc ) {
+                if (print_cmdln_parent( argc, argv )) {
+                    exit(EXIT_FAILURE) ;
+                }
+                printf( " =\n" );
+                fflush(stdout);
+            }
+
+            itemTable[( nritems - 1 )] = yylval;
             LOG( "STATUS == ACCEPT POWER:  we got %d items in the table:\n", nritems );
             LOG( "And we got %d varss  and %d operrators in the table:\n", nrvars, nrops );
 
-            exponent = make_vartables( nritems, nodeTable, nrvars, nrops, &vars, &coeffs, &ops );
+            void *pptr = realloc(itemTable ,( nritems * sizeof( itemData * )));
+            if (pptr == NULL ) {
+                fprintf( stderr, "realloc: something went wrong shrinking itemTable: %s, exiting\n",
+                    strerror(errno) );
+                exit( EXIT_FAILURE );
+            }
+
+            exponent = make_vartables( nritems, itemTable, nrvars, nrops, &vars, &coeffs, &ops );
 
             LOG( "Factor data: \n" );
             for ( int i = 0; i < nrvars; i++ ) {
@@ -310,11 +324,11 @@ int main( int argc, char *argv[] )
             }
             yylval = NULL;
             LOG( "exponent == %d\n", exponent );
-           /* Time to free the nodeTable */
+           /* Time to free the itemTable */
             for ( int i = 0; i < nritems; i++ ) {
-                free( nodeTable[i] );
+                free( itemTable[i] );
             }
-            free( nodeTable );
+            free( itemTable );
            /* this is where we call make_permtable() It is a great idea to
               return the number of rows. */
             int *terms_table;
