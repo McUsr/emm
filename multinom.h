@@ -67,18 +67,21 @@ typedef struct {
     int pwer;       /* operator */
 } pwrNodeType;
 
-typedef struct nodeTypeTag {
+typedef struct nodeTypeTag itemData ;
+
+struct nodeTypeTag {
     nodeEnum type;          /* type of node */
     union {
         factNodeType factor; /* A factor contains a coeffecient, maybe with a sign, and a variable name. */
         oprNodeType opr;    /* operators */
         pwrNodeType pwr;
     };
-} nodeType;
+    itemData *next;
+} ;
 
 typedef enum { FAIL=0,OK,ACCEPT} validity ;
 
-extern nodeType *yylval ;
+extern itemData *yylval ;
 
 /* Variables for pointing to syntax errors in the expressions.
  * TODO: tabs are so far surmised to be 8 spaces, this must change to a
@@ -99,7 +102,8 @@ extern int ignored_spaces;
  */
 extern bool PARSING_STAGE; 
 extern int nritems;
-extern nodeType **nodeTable;
+extern itemData **itemTable;
+extern itemData itemsHead;
 
 /* MODULE permute.o */
 int power(int base, int exp);
@@ -107,9 +111,9 @@ int mk_permtable(int nr_vars, int exponent, int **terms_table );
 void print_term_tbl(int nr_vars,int exponent, int *terms_table,  int nr_rows );
 
 /* MODULE mk_struct.o */
-nodeType *newOperator( char *str );
-nodeType *newPower( char *str );
-nodeType *newVariable( char *str, int len, content_type what);
+itemData *newOperator( char *str );
+itemData *newPower( char *str );
+itemData *newVariable( char *str, int len, content_type what);
 void lexer_exit(void);
 
 /* MODULE syntax_err.o */
@@ -120,7 +124,7 @@ void syntax_err2(const char * const details1,const char * const details2);
 validity validator( int item_type, int *nrvars, int *nrops, int *nritems);
 
 /* MODULE vartables.o */
-int make_vartables(int nritems,nodeType **nodeTable, int nrvars, int nrops,
+int make_vartables(int nritems,itemData **itemTable, int nrvars, int nrops,
         char **vars, int **coeffs, char **ops);
 void free_vartables(char **vars, int **coeffs, char **ops);
 
@@ -131,12 +135,12 @@ void adjust_coeffs(int nr_vars,int *coefftbl, char *optbl);
 
 /* MODULE arguments.o */
 
-typedef enum { OPT_BAD= -1,OPT_NONE=0,OPT_HELP} opt_tp;
+typedef enum { OPT_BAD= -1,OPT_NONE=0,OPT_HELP, OPT_PREPROCESS} opt_tp;
 
 void show_usage( char *prog_name);
 void show_help(void );
-int print_cmdln_child( int argc, char *argv[], int treshold, int *consumed );
-int print_cmdln_parent( int argc, char *argv[], int *consumed);
+int print_cmdln_child( int argc, char *argv[], int treshold, int *consumed, int arg_start );
+int print_cmdln_parent( int argc, char *argv[] );
 int options( int argc, char *argv[] );
 
 #endif
