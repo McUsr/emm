@@ -40,33 +40,46 @@ static int sym[53]; /* 1 more for the case we have a coeffecient without a
                        variable. */
 // check this out, I have it defined somewhere else!
 
-static nodeType *mkVarNode( int coeff, char var )
+static itemData *mkVarNode( int coeff, char var )
 {
-    nodeType *retval = malloc( sizeof( nodeType ) );
+    itemData *retval = malloc( sizeof( itemData ) );
     if ( retval != NULL ) {
         retval->type = typeFact;
         retval->factor.coeff = coeff;
         retval->factor.var = var;
+        retval->next = NULL;
     } else {
-        fprintf( stderr, "retval: Out of memory, exiting\n" );
+        fprintf( stderr, "mkVarNode: Out of memory, exiting\n" );
         exit( EXIT_FAILURE );
     }
     return retval;
 }
 
-static nodeType *mkOperNode( char oper )
+static itemData *mkOperNode( char oper )
 {
-    nodeType *retval = malloc( sizeof( nodeType ) );
-    retval->type = typeOpr;
-    retval->opr.oper = oper;
+    itemData *retval = malloc( sizeof( itemData ) );
+    if ( retval != NULL ) {
+        retval->type = typeOpr;
+        retval->opr.oper = oper;
+        retval->next = NULL;
+    } else {
+        fprintf( stderr, "mkOperNode: Out of memory, exiting\n" );
+        exit( EXIT_FAILURE );
+    }
     return retval;
 }
 
-static nodeType *mkPowerNode( int pwer )
+static itemData *mkPowerNode( int pwer )
 {
-    nodeType *retval = malloc( sizeof( nodeType ) );
-    retval->type = typePwr;
-    retval->pwr.pwer = pwer;
+    itemData *retval = malloc( sizeof( itemData ) );
+    if ( retval != NULL ) {
+        retval->type = typePwr;
+        retval->pwr.pwer = pwer;
+        retval->next = NULL;
+    } else {
+        fprintf( stderr, "mkPowerNode: Out of memory, exiting\n" );
+        exit( EXIT_FAILURE );
+    }
     return retval;
 }
 
@@ -96,12 +109,12 @@ static bool accepted_var( char var )
     }
 }
 
-nodeType *newOperator( char *str )
+itemData *newOperator( char *str )
 {
     return mkOperNode( *str );
 }
 
-nodeType *newPower( char *str )
+itemData *newPower( char *str )
 {
     char *endptr;
     str++;
@@ -126,9 +139,9 @@ nodeType *newPower( char *str )
     return mkPowerNode( pwer );
 }
 
-nodeType *newVariable( char *str, int len, content_type what )
+itemData *newVariable( char *str, int len, content_type what )
 {
-    nodeType *retval = NULL;
+    itemData *retval = NULL;
     int coeff = 0;
     char var = 0;
     switch ( what ) {
@@ -251,10 +264,17 @@ void lexer_exit( void )
 {
    /* uses global variables */
     if ( PARSING_STAGE == true ) {
-        for ( int i = 0; i < nritems; i++ ) {
-            free( nodeTable[i] );
+
+        for (int i=0;i<nritems;i++) {
+            free( itemTable[i] );
         }
-        free( nodeTable );
-        nodeTable = NULL;
+        free(itemTable);
+        /* itemData  *p= itemsHead.next, *q=NULL ; */
+
+        /* for ( q=p->next; q != NULL; q=p->next ) { */
+        /*     free( p ); */
+        /*     p = q ; */
+        /* } */
     }
+
 }
