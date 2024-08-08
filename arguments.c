@@ -38,15 +38,12 @@ void show_usage( char *prog_name)
 void show_help(void )
 {
   fprintf(stderr, "\n -h  -- prints this help and exits.\n");
-  fprintf(stderr, "\nA multinomial expression is on the form: \"(a -2b +c)^4\", parentheses mandatory.\n\n");
-  fprintf(stderr, " Piping or redirecting to a file sends the result there without any explanation\n"
-         " to be used as input for a calculator.\n");
-  fprintf(stderr,"\"multinom '(-3x - 5y + 2z) ^4' > newout\" send the expression to newout.\n");
-  fprintf(stderr,"\"multinom '(-3x - 5y + 2z) ^4' 2>/dev/null\" shows only the expression on screen..\n");
-  fprintf(stderr,"\"multinom '(-3x - 5y + 2z) ^4' >& newout\" send everything to newout.\n");
-  fprintf(stderr,"\"multinom '(-3x - 5y + 2z) ^4' 2>&1 >newout\" send everything to newout.\n");
-
-  /* fprintf( stderr, "Usage: \"%s [-h|-p '(a -2b +c)^4'\"\n", basename(prog_name)); */
+  fprintf(stderr, " -p -- No helpful text, or arrows pointing at syntax error.\n"
+                  "       Intended for piping the expression into another filter or calc.\n"
+                    );
+  fprintf(stderr, "\n A multinomial expression is on the form: \"(a - 2b + c)^4\"\n"
+                   " parentheses are mandatory, as is spaces between operands and operators.\n\n"
+                   );
 }
 
 /*  
