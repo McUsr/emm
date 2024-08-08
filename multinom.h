@@ -104,7 +104,7 @@ extern bool PARSING_STAGE;
 extern int nritems;
 extern itemData **itemTable;
 extern itemData itemsHead;
-
+extern bool no_preproc;
 /* MODULE permute.o */
 int power(int base, int exp);
 int mk_permtable(int nr_vars, int exponent, int **terms_table );
