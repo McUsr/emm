@@ -20,7 +20,7 @@ ifeq ($(origin BUILD),undefined)
 	BUILD := debug
 endif
 
-CVERSION := -std=gnu99
+CVERSION := -std=c99
 cflags.common := -Wall -Wextra -fPIC
 cflags.debug := -g3 -O0  -DTEST
 # cflags.debug := -g3 -O0  -static-libasan -DTEST
@@ -28,6 +28,8 @@ cflags.sanitize := -g3 -O0 -fsanitize=address,undefined
 cflags.release := -O2 -D_FORTIFY_SOURCE=3 -fstack-protector-strong
 
 CFLAGS  := $(cflags.$(BUILD)) $(cflags.common)
+
+CPPFLAGS := -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=500
 
 COMPILE.c = $(CC) $(CVERSION) $(DEPFLAGS) $(CFLAGS) $(CPPFLAGS) -c
 
