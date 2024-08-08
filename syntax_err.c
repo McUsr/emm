@@ -32,7 +32,7 @@
 void syntax_err( const char *const details )
 {
     fflush( stdout );
-    if (no_preproc) {
+    if (NO_PREPROC) {
         fprintf( stderr, "\n%*s^\n", ( consumed_text + ignored_spaces ), " " );
         if ( details == NULL ) {
             fprintf( stderr, "%*sSyntax error.\n", ( consumed_text + ignored_spaces ), " " );
@@ -51,7 +51,7 @@ void syntax_err( const char *const details )
 void syntax_err2( const char *const details1, const char *const details2 )
 {
     fflush( stdout );
-    if (no_preproc) {
+    if (NO_PREPROC) {
         fprintf( stderr, "\n%*s^\n", ( consumed_text + ignored_spaces ), " " );
         fprintf( stderr, "%*sSyntax error: %s: %s\n", ( consumed_text + ignored_spaces ), " ", details1, details2 );
     } else {
