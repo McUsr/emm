@@ -56,11 +56,15 @@ static void log_msg(const char *format, ...) {
         vfprintf(stderr, format, args);
     va_end(args);
 }
-int consumed_text=0, ignored_spaces=0;
-int nritems=0;
-bool PARSING_STAGE=false; 
-itemData **itemTable;
-itemData *yylval ;
+    /* Global variables */
+    int consumed_text=0;
+    int ignored_spaces=0;
+    int nritems=0;
+
+    bool PARSING_STAGE=false; 
+    bool NO_PREPROC=true;
+
+    itemData **itemTable, *yylval,itemsHead;
 %}
 sign    [-+]{1}
 digits  [0-9]+
@@ -109,12 +113,13 @@ rightp ")"
 
 .                       { 
                             fflush(stdout);
-                            if ((int) *yytext != 17 ) {
+                            if (NO_PREPROC ) {
                                 fprintf(stderr,"\n%*s^\n",(consumed_text+ignored_spaces)," ");
                                 fprintf(stderr,"%*sSyntax error: LEX: Illegal character.\n",(consumed_text+ignored_spaces)," ");
-                                fprintf(stderr,"\nIllegal character is %d\n",(int)*yytext);
-                                exit(EXIT_FAILURE);
+                            } else {
+                                fprintf(stderr, "Syntax Error. Exiting.\n");
                             }
+                            exit(EXIT_FAILURE);
                         }
 
 %%
@@ -130,7 +135,6 @@ int main( int argc, char *argv[] )
     int wc_pid;
     int wc_pfd[2];
     int chldstatus;
-    bool no_preproc=true ;
     FILE *in;
 
     if ( argc < 2 ) {
@@ -150,7 +154,7 @@ int main( int argc, char *argv[] )
         exit(EXIT_SUCCESS);
         break;
     case OPT_PREPROCESS:
-        no_preproc=false;
+        NO_PREPROC=false;
         break;
     case OPT_BAD:
         show_usage(argv[0]);
@@ -232,15 +236,14 @@ int main( int argc, char *argv[] )
         exit( EXIT_FAILURE );
     }
 
-    int arrlen = 53;
-    /* because there are one more than the operators, and there are two spaces
-       for each operator. so, this will be a pretty generous estimate. */
-    LOG( "number of elements we can store in the array is %d\n", arrlen );
-    itemTable = malloc( arrlen * sizeof( itemData * ) );
-    if ( itemTable == NULL ) {
-        fprintf( stderr, "itemTable: Out of memory, exiting\n" );
-        exit( EXIT_FAILURE );
+    if (NO_PREPROC ) {
+        if (print_cmdln_parent( argc, argv )) {
+            exit(EXIT_FAILURE) ;
+        }
     }
+
+    itemData *itemPtr;
+    itemsHead.next = NULL;
 
     int item_type,
      nrvars = 0,
@@ -256,7 +259,6 @@ int main( int argc, char *argv[] )
     }
     while ( ( item_type = yylex(  ) ) != 0 ) {
         if ( ( end_cond = validator( item_type, &nrvars, &nrops, &nritems ) ) == OK ) {
-            assert( nritems <= arrlen ) ;
             consumed_text += yyleng;
             LOG( "STATUS == OK " );
             switch ( item_type ) {
@@ -276,45 +278,59 @@ int main( int argc, char *argv[] )
             case OPERAND:
             case OPERATOR:
             case PWR_V:
-                itemTable[( nritems - 1 )] = yylval;
+                /* itemTable[( nritems - 1 )] = yylval; */
+                if (itemsHead.next == NULL ) {
+                    itemsHead.next = yylval;
+                    itemPtr=itemsHead.next;
+                    /* itemPtr=itemPtr->next ; */
+                } else {
+                    itemPtr->next =yylval;
+                    itemPtr = itemPtr->next ;
+                }
                 break;
             default:
                 ;
             }
-           /* into struct with yylval? */
             continue;
         } else if ( end_cond == FAIL ) {
             syntax_err( NULL );
-           /* Could have saved the last state, and figured what was amiss. */
             LOG( "STATUS == FAIL\n" );
             break;
         } else if ( end_cond == ACCEPT ) {
            /* 
               Arrays we'll transfer data to, that will work in parallel with the
-              permutations table. */
+              permutations table.
+            */
             char *vars = NULL, *ops = NULL;
             int *coeffs = NULL, exponent = 0;
 
             PARSING_STAGE = false;
 
-            if (no_preproc ) {
+            if (NO_PREPROC ) {
                 if (print_cmdln_parent( argc, argv )) {
                     exit(EXIT_FAILURE) ;
                 }
                 printf( " =\n" );
                 fflush(stdout);
             }
+            itemPtr->next=yylval ; /* final element */
+            itemPtr = itemPtr->next ;
 
-            itemTable[( nritems - 1 )] = yylval;
-            LOG( "STATUS == ACCEPT POWER:  we got %d items in the table:\n", nritems );
-            LOG( "And we got %d varss  and %d operrators in the table:\n", nrvars, nrops );
-
-            void *pptr = realloc(itemTable ,( nritems * sizeof( itemData * )));
-            if (pptr == NULL ) {
-                fprintf( stderr, "realloc: something went wrong shrinking itemTable: %s, exiting\n",
-                    strerror(errno) );
+            itemTable = malloc( nritems * sizeof( itemData * ) );
+            if ( itemTable == NULL ) {
+                fprintf( stderr, "itemTable: Out of memory: %s, exiting\n",strerror(errno) );
                 exit( EXIT_FAILURE );
             }
+            itemPtr = &itemsHead ;
+            itemPtr = itemPtr->next ;
+            int k = 0 ;
+            while (itemPtr != NULL ) {
+                itemTable[k++] = itemPtr ;
+                itemPtr = itemPtr->next ;
+            }
+
+            LOG( "STATUS == ACCEPT POWER:  we got %d items in the table:\n", nritems );
+            LOG( "And we got %d varss  and %d operrators in the table:\n", nrvars, nrops );
 
             exponent = make_vartables( nritems, itemTable, nrvars, nrops, &vars, &coeffs, &ops );
 
@@ -322,8 +338,7 @@ int main( int argc, char *argv[] )
             for ( int i = 0; i < nrvars; i++ ) {
                 LOG( "%d%c\n", coeffs[i], vars[i] );
             }
-            yylval = NULL;
-            LOG( "exponent == %d\n", exponent );
+            yylval = NULL; /* doesn't point to freed memory. */
            /* Time to free the itemTable */
             for ( int i = 0; i < nritems; i++ ) {
                 free( itemTable[i] );
@@ -342,9 +357,7 @@ int main( int argc, char *argv[] )
             }
 
             adjust_coeffs( nrvars, coeffs, ops );
-           // print_term_tbl(nrvars, exponent, terms_table, terms_rows);
             expand_expr( terms_rows, nrvars, terms_table, vars, coeffs );
-           /* free_vartables(&vars, &coeffs,&ops); */
             free( terms_table );
             free_vartables( &vars, &coeffs, &ops );
 
