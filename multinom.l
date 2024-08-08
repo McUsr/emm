@@ -338,7 +338,9 @@ int main( int argc, char *argv[] )
             for ( int i = 0; i < nrvars; i++ ) {
                 LOG( "%d%c\n", coeffs[i], vars[i] );
             }
-            yylval = NULL; /* doesn't point to freed memory. */
+            /* doesn't point to freed memory. */
+            yylval = NULL; 
+            itemsHead.next = NULL ;
            /* Time to free the itemTable */
             for ( int i = 0; i < nritems; i++ ) {
                 free( itemTable[i] );
