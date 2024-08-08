@@ -32,17 +32,29 @@
 void syntax_err( const char *const details )
 {
     fflush( stdout );
-    fprintf( stderr, "\n%*s^\n", ( consumed_text + ignored_spaces ), " " );
-    if ( details == NULL ) {
-        fprintf( stderr, "%*sSyntax error.\n", ( consumed_text + ignored_spaces ), " " );
+    if (no_preproc) {
+        fprintf( stderr, "\n%*s^\n", ( consumed_text + ignored_spaces ), " " );
+        if ( details == NULL ) {
+            fprintf( stderr, "%*sSyntax error.\n", ( consumed_text + ignored_spaces ), " " );
+        } else {
+            fprintf( stderr, "%*sSyntax error: %s\n", ( consumed_text + ignored_spaces ), " ", details );
+        }
     } else {
-        fprintf( stderr, "%*sSyntax error: %s\n", ( consumed_text + ignored_spaces ), " ", details );
+        if ( details == NULL ) {
+            fprintf( stderr, "\nSyntax error.\n");
+        } else {
+            fprintf( stderr, "\nSyntax error: %s\n", details );
+        }
     }
 }
 
 void syntax_err2( const char *const details1, const char *const details2 )
 {
     fflush( stdout );
-    fprintf( stderr, "\n%*s^\n", ( consumed_text + ignored_spaces ), " " );
-    fprintf( stderr, "%*sSyntax error: %s: %s\n", ( consumed_text + ignored_spaces ), " ", details1, details2 );
+    if (no_preproc) {
+        fprintf( stderr, "\n%*s^\n", ( consumed_text + ignored_spaces ), " " );
+        fprintf( stderr, "%*sSyntax error: %s: %s\n", ( consumed_text + ignored_spaces ), " ", details1, details2 );
+    } else {
+        fprintf( stderr, "\nSyntax error: %s: %s\n", details1, details2 );
+    }
 }
