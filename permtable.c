@@ -47,15 +47,11 @@ static void log_msg( const char *format, ... )
     va_end( args );
 }
 
-#include <limits.h>
-#include <stdlib.h>
-#include <stdio.h>
-
 static unsigned fact_too_big_param = 0;
 
 /* 
  * Truly fixed detecting overflows and underflows  thanks to u/inz_ 
- * This can be done better I'm sure though.
+ * This can be done better I'm sure though, by bit counting.
  */
 int power( int base, int exp )
 {
@@ -101,15 +97,16 @@ int power( int base, int exp )
 }
 
 /*
- * We set fact_errval to too large parameter and return with -1
- * in order to propagate error messages where error messages are due.
- * TODO: Count bits instead of the invariantt with division.
+ * We return with -1 when there is overflow.
+ * Could count bits instead of the invariant with division.
+ * Not sure if there are much to saved, and it isn't so precarious
+ * here anyway. 
  */
 int factorial( unsigned n )
 {
     unsigned tmp = n;
     if ( n <= 1 ) {
-        return 1L;
+        return 1;
     } else {
         unsigned next = n - 1;
         fact_too_big_param = n;
@@ -123,12 +120,10 @@ int factorial( unsigned n )
             }
         }
     }
-   /* msb of tmp can't be set if we get here. implies that the ULONG can be
-      casted to LONG! */
+   /* msb of tmp can't be set if we get here. implies that the UINT can be
+      casted to INT! */
     return ( int ) tmp;
 }
-
-/* a different animal, but also alike. */
 
 long l_factorial( unsigned n )
 {
@@ -154,43 +149,26 @@ long l_factorial( unsigned n )
 }
 
 /**
- * Error handling complex for c().
- * r > n is own error,
- * a too large parameter for factorial being another.
+ * @brief Calculates an r-combination. 
+ * @detail
  *
- * return value in this time should be -1 too.
- * maybe have a err_cnt_table.
- */
-/**
  * c(n,r) == n!/(r!*(n-r)!)
- *
- * There is more thatt doesn't make sense here, if r > n. f.ex.
- * It should be taken care of before trying to get factorials.
- * TODO:
  * if n>=r && fact(n) > -1  we're okay!
+ *
+ * There is more that doesn't make sense here, if r > n. f.ex.
+ * It should be taken care of before trying to get factorials.
+ * A too large parameter for factorial being another.
+ * Return value in this case should be -1 too.
+ *
  */
-#if 0 == 1
-static long c( int n, int r )
-{
-    assert( r <= n );
-    if ( n == 0 )
-        return 1;
-    if ( r == 0 )
-        return 1; // there is just one combination of zero elements.
-
-    long int result = ( factorial( n ) / ( factorial( r ) * factorial( n - r ) ) );
-    return result;
-}
-#else
 static int c( int n, int r )
 {
     assert( r <= n );
     if ( n == 0 )
         return 1;
     if ( r == 0 )
-        return 1; // there is just one combination of zero elements.
+        return 1; /* there is just one combination of zero elements. */
 
-   /* printf(" n== %d r == %d\n",n, r); */
 
     long ntmp = l_factorial( n );
     if ( ntmp == -1 ) {
@@ -200,32 +178,34 @@ static int c( int n, int r )
     long rtmp = l_factorial( r ),
         nminusrtmp = l_factorial( n - r );
 
-   /* printf(" n! = %d r! = %d (n-r)! = %d\n",ntmp,rtmp, nminusrtmp); */
     ntmp /= rtmp;
-   /* printf("ntmp/ rtmp == %d\n",ntmp); */
     ntmp /= nminusrtmp;
-    if ( ntmp < INT_MAX )
+    if ( ntmp < INT_MAX ) {
         return ntmp;
-    else
+    } else {
         return -1;
-   /* long int result = (factorial(n)/(factorial(r)*factorial(n-r))) ; */
-   /* return result; */
+    }
 }
-#endif
 
-// https://www.baeldung.com/cs/permutations-with-repetition
+/* https://www.baeldung.com/cs/permutations-with-repetition */
+/**
+ * @brief Generates the nextt permutation with repetition.
+ * @detail Much like lexically ordered permutations, but 
+ * here we change the order "odometer-wise".
+ * There are 'k' positions in the buffer.
+ */
 static int *next( int *x, int n, int k )
 {
-   // Find the suffix to change.
-    int j = k - 1;
+   /* Find the suffix to change. */
+    int j = k - 1; /* last position! */
     while ( j >= 0 && x[j] == n )
         j--;
 
     if ( j == -1 )
-        return NULL; // x was the last permutation
+        return NULL; /* x was the last permutation */
 
 
-   // Change the suffix.
+   /* Change the suffix. */
     for ( int l = j; l < k; l++ ) {
         if ( x[l] == n )
             x[l] = 0;
@@ -239,14 +219,17 @@ static int *next( int *x, int n, int k )
 
 static bool processed( int *x, int n, int k, int *coefftbl, int sres_idx )
 {
-   // table is now stack, so we need to treat the area
-   // as a stack.
-   // maybe easy if everything inside a struct.
-
-   // if cross sum of x == 4 
-   // assign row correctly in reverse list.
-   // calculatate multinomial coeffecient.
-   // place multinomial coeffecient correctly in reverse list.
+   /* 
+    * The table is now stack, so we need to treat the area
+    * as a stack.
+    * maybe easy if everything inside a struct.
+    *
+    * if cross sum of x == k (power to whichh multinomial is raised.
+    * assign row correctly in reverse list.
+    * LATER:
+    * Calculatate multinomial coeffecient.
+    * place multinomial coeffecient correctly in reverse list.
+   */
 
     bool passed = false;
     bool dbg_show = false;
@@ -259,7 +242,7 @@ static bool processed( int *x, int n, int k, int *coefftbl, int sres_idx )
 
     if ( cross_sum == n ) {
         passed = true;
-       // calc of multinomial coeffecient happens later! 
+       /* calc of multinomial coeffecient happens later! */
         if ( dbg_show ) {
             for ( int i = 0; i < k; i++ )
                 printf( "%2d ", x[i] );
@@ -275,12 +258,15 @@ static bool processed( int *x, int n, int k, int *coefftbl, int sres_idx )
 static void perm_term_tbl( int k, int n, int *coefftbl, int sres_idx, int *p_buffer )
 {
 
-   // INPUT
-   // n = the set cardinality
-   // k = the length of permutations with repetition (nr_vars).
-   // OUTPUT
-   // All the k-tuples of the set {1,2,...,n} are processed
-
+   /* INPUT
+    * n = the set cardinality, the number of powers upto and including n.
+    * n happens to be the exponent to which the multinomial is raised/expanded to.
+    * k = the length of permutations with repetition (nr_vars).
+    * OUTPUT
+    * All the k-tuples of the set {1,2,...,n} are processed
+    * and all the k-tuples with a cross-sum of n is inserted into the coefftbl by
+    * processed().
+    */
 
     doprint = false;
     while ( sres_idx >= 0 && p_buffer != NULL ) {
@@ -288,29 +274,29 @@ static void perm_term_tbl( int k, int n, int *coefftbl, int sres_idx, int *p_buf
         if ( processed( p_buffer, n, k, coefftbl, sres_idx ) )
             sres_idx--;
 
-        p_buffer = next( p_buffer, n, k );
+        p_buffer = next( p_buffer, n, k ); 
+        /* Next permutation to processe. */
     }
 }
 
 
-#if 0 == 1
 /**
  * The number of rows we need for the coeffecient table
  * is how many rows there are of permutations, with the cross sum
  * equalling the exponent. 
- * The combinatoric formula (n+k-1) 
- *                           (  k  ) 
+ *
+ * The combinatoric formula:  (n+k-1) 
+ *                            (  k  ) 
+ *                            
  * Number of r-combinations of a set with n elements with repetition
  * allowed.  N is here the number of variables, k is the exponent to which
  * the multinomial (also a binomial or monomial) is raised.
- */
-int coefftbl_rows( int exponent, int nr_vars )
-{
-    return c( ( nr_vars + exponent - 1 ), exponent );
-}
-#endif
-/* 
- * TODO for the dividens, I can check with the division.
+ * (The power which the multinomial is expanded to.)
+ *
+ *     int coefftbl_rows( int exponent, int nr_vars )
+ *     {
+ *         return c( ( nr_vars + exponent - 1 ), exponent );
+ *     } 
  */
 
 static void calc_multinom_coeff( int nr_vars, int mnom_dividend, int *terms_table, int nr_rows )
@@ -339,7 +325,8 @@ static void calc_multinom_coeff( int nr_vars, int mnom_dividend, int *terms_tabl
 
 }
 
-
+#if 0 == 1
+/* A debug routine */
 void print_term_tbl( int nr_vars, int exponent, int *terms_table, int nr_rows )
 {
     printf( "Multinomial table for exponent == %d, number of vars: %d\n", exponent, nr_vars );
@@ -352,29 +339,20 @@ void print_term_tbl( int nr_vars, int exponent, int *terms_table, int nr_rows )
     }
 
 }
-
+#endif 
 void exponent_err( void )
 {
     fflush( stdout );
-    fprintf( stderr, "\nExponent too big: was: %u, see the manual.\n", fact_too_big_param );
+    fprintf( stderr, "\nExponent too big to calculate the factorial of: was: %u, needs to exit.\n", fact_too_big_param );
 }
-
-
-/* De eneste jeg vil ha ut er permutasjons tabellen. Jeg tenker jeg gjør dette
- * om til et modul.
- * TODO: Beskrankninger med hensyn til powers og antall variable på utsiden av dette.
- *
- * Initial seed er en funksjon også.
- *
- *
- * Skriver pseudo kode først.
- *
- * TODO: NO PRINTING OF POWERS FOR POWERS < 2 !!!!
- * */
-
+/**
+ * @brief Generates the table with multinomial coeffecients that satisfies
+ * the condition that the cross sum of the row equals the power of the multinomial,
+ * IN REVERSE ORDER, so the terms comes out correctly in the end.
+ */
 int mk_permtable( int nr_vars, int exponent, int **terms_table )
 {
-   // Create the buffer we permute.
+   /* Create the buffer we permute. */
     assert( nr_vars > 1 && exponent > 0 );
     int *perm_buffer = calloc( nr_vars, sizeof( int ) );
     if ( perm_buffer == NULL ) {
@@ -384,30 +362,33 @@ int mk_permtable( int nr_vars, int exponent, int **terms_table )
 
     perm_buffer[nr_vars - 1] = exponent; // seed the buffer with start value
 
-   // Calculate number of rows in the terms_table which contains the
-   // power for the variables and the multinom coeff for the term.
+   /*
+    * Calculate number of rows in the terms_table which contains the
+    * power for the variables and the multinom coeff for the term.
+    */
     int rows_termtbl;
     rows_termtbl = c( ( nr_vars + exponent - 1 ), exponent );
     if ( rows_termtbl == -1 ) {
         free( perm_buffer );
-        fprintf( stderr, "Integer overflow while computing number of factors.\n" );
-        fprintf( stderr, "The combination of the exponent (%d), and"
+        fprintf( stderr, "mk_permtable: Integer overflow while computing number of factors.\n" );
+        fprintf( stderr, "mk_permtable: The combination of the exponent (%d), and"
                  " the number of variables (%d) is too large.\n", exponent, nr_vars );
         return -1;
     }
-   // Allocate memory for the terms_table.
+   /* Allocate memory for the terms_table. */
     *terms_table = calloc( ( rows_termtbl * ( nr_vars + 1 ) ), sizeof( int ) );
     if ( terms_table == NULL ) {
         fprintf( stderr, "terms_table: Out of memory, exiting\n" );
         exit( EXIT_FAILURE );
     }
 
-    int last_term_idx = ( rows_termtbl - 1 ); // we fill it in from bottom.
-   // We generate the coeff table first.
+    int last_term_idx = ( rows_termtbl - 1 ); 
+    /* we fill in the terms_table from bottom. so the permu
+     * are ordered in reverse, which is correct in our case. 
+     */
 
     perm_term_tbl( nr_vars, exponent, *terms_table, last_term_idx, perm_buffer );
 
-   /* TODO: calc exponent here, faults here! pass in multinomial dividend. */
     int mnom_dividend = factorial( exponent );
     if ( mnom_dividend == -1 ) {
         free( *terms_table );
@@ -422,15 +403,3 @@ int mk_permtable( int nr_vars, int exponent, int **terms_table )
     return rows_termtbl;
 
 }
-
-#if 0 == 1
-int main( void )
-{
-    int *terms_table;
-    int nr_vars = 3,
-        exponent = 4;
-    int terms_rows = mk_permtable( nr_vars, exponent, &terms_table );
-    print_term_tbl( nr_vars, exponent, terms_table, terms_rows );
-    free( terms_table );
-}
-#endif
