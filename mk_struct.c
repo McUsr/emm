@@ -264,17 +264,12 @@ void lexer_exit( void )
 {
    /* uses global variables */
     if ( PARSING_STAGE == true ) {
+        itemData  *p = itemsHead.next, *q=NULL ;
 
-        for (int i=0;i<nritems;i++) {
-            free( itemTable[i] );
+        for ( q=p->next; q != NULL; q=p->next ) {
+            free( p );
+            p = q ;
         }
-        free(itemTable);
-        /* itemData  *p= itemsHead.next, *q=NULL ; */
-
-        /* for ( q=p->next; q != NULL; q=p->next ) { */
-        /*     free( p ); */
-        /*     p = q ; */
-        /* } */
     }
 
 }
