@@ -31,6 +31,7 @@
 
 #define SPACE ' '
 
+char *argstr = NULL;
 void show_usage( char *prog_name)
 {
   fprintf( stderr, "Usage: \"%s [-h|-p] (multinomial expression)^power.\"\n", basename(prog_name));
@@ -63,7 +64,7 @@ int print_cmdln_child( int argc, char *argv[], int treshold, int *consumed, int 
          int len = strlen(*argv) ;
         char *buf = calloc(len +1,1 );
         if (buf == NULL) {
-            fprintf(stderr,"print_cmdln: Error: calloc() Out Of Memory. Exiting\n");
+            fprintf(stderr,"print_cmdln: buflen:  Error: calloc() Out Of Memory. Exiting\n");
             return 1;
         }
         char *strbuf = buf;
@@ -93,8 +94,8 @@ int print_cmdln_child( int argc, char *argv[], int treshold, int *consumed, int 
             buflen--;
         }            
 
-        *consumed += buflen ; // newline not part of the argstrlength capacity equation.
-        treshold -= (buflen + (i>2) ? 0 : 1  );
+        *consumed += buflen ; /*  newline not part of the argstr length capacity equation.*/
+        treshold -= (buflen + (i==(arg_start-1)) ? 0 : 1  );
         //  we add the newline after the last argument (u/inz_)
         if (treshold > 0 ) {
             printf("%s",buf);
@@ -109,35 +110,115 @@ int print_cmdln_child( int argc, char *argv[], int treshold, int *consumed, int 
     return 0;
 }
 
-/**
- * TODO: print to stdout, so we can reimplement
- * switches for bare output.
+
+/* If we get to this point in the program, as the parent cmdln routines
+ * are called then we know that the total length of the capacity is within
+ * the length of  YY_BUF_SIZE. This is vetted in the child_cmdln routine.
  */
 
-int print_cmdln_parent( int argc, char *argv[])
+int print_cmdln_parent( int argc, char *argv[], int arg_start)
 {
-    ++argv;
+    for (int i=0;i<arg_start;i++) {
+        ++argv;
+    }
 
-    for (int i = argc ; i>1;i--) {
+    for (int i = argc ; i>arg_start;i--) {
         if (i<argc) {
-            fprintf(stderr,"%c",SPACE); ; 
+            fprintf(stdout,"%c",SPACE); ; 
         }
 
         while (**argv) {
             if (isspace((unsigned char)**argv)) {
-                fprintf(stderr,"%c",SPACE); ; 
+                fprintf(stdout,"%c",SPACE); ; 
                 (*argv)++;
                 while (isspace((unsigned char)**argv)) {
                     (*argv)++;
                 }
             } else {
-                fprintf(stderr,"%c",**argv); ; 
+                fprintf(stdout,"%c",**argv); ; 
                 (*argv)++;
             }
         }
          argv++;
     }
     return 0;
+}
+
+/* We know that the number we can maximally strncat, is the 
+ * number of chars left in the string. Thanks. u/skeeto.
+ */
+int save_cmdln_parent( int argc, char *argv[], int treshold, int arg_start)
+{
+    int numbytes = treshold;
+
+    argstr=calloc((treshold+1),1); ;
+    if ( argstr == NULL ) {
+        fprintf(stderr,"save_cmdln_parent: argstr: calloc(): Out of memory, exiting\n");
+        return -1; 
+    }
+    for (int i=0;i<arg_start;i++) {
+        ++argv;
+    }
+
+    for (int i = argc ; i>arg_start;i--) {
+        int len = strlen(*argv) ;
+        char *buf = calloc(len +1,1 );
+        if (buf == NULL) {
+            fprintf(stderr,"print_cmdln: buflen:  Error: calloc() Out Of Memory. Exiting\n");
+            return 1;
+        }
+        char *strbuf = buf;
+
+        if (i<argc) {
+            *(strbuf++) = SPACE ; 
+        }
+
+        while (**argv) {
+            if (isspace((unsigned char)**argv)) {
+                *(strbuf++) = SPACE ;
+                (*argv)++;
+                while (isspace((unsigned char)**argv)) {
+                    (*argv)++;
+                }
+            } else {
+                *strbuf = **argv ;
+                strbuf++;
+                (*argv)++;
+            }
+        }
+        *strbuf = '\0' ;
+
+        int buflen = strlen(buf);
+        if (buf[buflen-1] == SPACE ) {
+            buf[buflen-1] = '\0' ;
+            buflen--;
+        }            
+
+        treshold -= (buflen + (i==(arg_start-1)) ? 0 : 1  );
+        if (treshold > 0 ) {
+            strncat(argstr,buf,treshold);
+            free(buf);    
+        } else {
+            fprintf(stderr, "print_cmdln: Error: argument string  too long, maximum is %d bytes\n",numbytes);
+            free(buf);    
+            free(argstr);
+            return 1;
+        }
+         argv++;
+    }
+    /* installing at exit routine */
+    if (atexit(argstr_free) != 0) {
+        fprintf(stderr, "save_cmdln_parent: atexit() couldn't install argstr_free, exiting\n");
+        free(argstr);
+        return 1;
+    }
+    return 0;
+
+}
+
+void argstr_free(void) 
+{
+    free(argstr);
 }
 /* parses any command line options. */
 int options( int argc, char *argv[] )

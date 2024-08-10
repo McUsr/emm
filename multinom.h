@@ -105,6 +105,7 @@ extern int nritems;
 extern itemData **itemTable;
 extern itemData itemsHead;
 extern bool NO_PREPROC;
+extern char *argstr; /* freed by an atexit routine */
 /* MODULE permute.o */
 int power(int base, int exp);
 int mk_permtable(int nr_vars, int exponent, int **terms_table );
@@ -140,7 +141,9 @@ typedef enum { OPT_BAD= -1,OPT_NONE=0,OPT_HELP, OPT_PREPROCESS} opt_tp;
 void show_usage( char *prog_name);
 void show_help(void );
 int print_cmdln_child( int argc, char *argv[], int treshold, int *consumed, int arg_start );
-int print_cmdln_parent( int argc, char *argv[] );
+int print_cmdln_parent( int argc, char *argv[], int arg_start);
+int save_cmdln_parent( int argc, char *argv[], int treshold, int arg_start);
+void argstr_free(void);
 int options( int argc, char *argv[] );
 
 #endif

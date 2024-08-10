@@ -113,12 +113,11 @@ rightp ")"
 
 .                       { 
                             fflush(stdout);
-                            if (NO_PREPROC ) {
-                                fprintf(stderr,"\n%*s^\n",(consumed_text+ignored_spaces)," ");
-                                fprintf(stderr,"%*sSyntax error: LEX: Illegal character.\n",(consumed_text+ignored_spaces)," ");
-                            } else {
-                                fprintf(stderr, "Syntax Error. Exiting.\n");
+                            if (NO_PREPROC == false ) {
+                                fprintf(stderr,"%s\n",argstr);
                             }
+                            fprintf(stderr,"\n%*s^\n",(consumed_text+ignored_spaces)," ");
+                            fprintf(stderr,"%*sSyntax error: LEX: Illegal character.\n",(consumed_text+ignored_spaces)," ");
                             exit(EXIT_FAILURE);
                         }
 
@@ -142,11 +141,10 @@ int main( int argc, char *argv[] )
         fprintf( stderr, "Missing a multinomial  with a power to expand. Exiting.\n");
         exit( EXIT_FAILURE );
     }
-    int ret_val = options(argc,argv);
+    int ret_val = options(argc,argv); /* sets optind */
 
     switch (ret_val) {
     case OPT_NONE:
-        ;
         break;
     case OPT_HELP:
         show_usage(argv[0]);
@@ -237,7 +235,11 @@ int main( int argc, char *argv[] )
     }
 
     if (NO_PREPROC ) {
-        if (print_cmdln_parent( argc, argv )) {
+        if (print_cmdln_parent( argc, argv, optind )) {
+            exit(EXIT_FAILURE) ;
+        }
+    } else { 
+        if (save_cmdln_parent( argc, argv,YY_BUF_SIZE,optind )) {
             exit(EXIT_FAILURE) ;
         }
     }
@@ -307,9 +309,6 @@ int main( int argc, char *argv[] )
             PARSING_STAGE = false;
 
             if (NO_PREPROC ) {
-                if (print_cmdln_parent( argc, argv )) {
-                    exit(EXIT_FAILURE) ;
-                }
                 printf( " =\n" );
                 fflush(stdout);
             }
