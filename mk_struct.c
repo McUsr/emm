@@ -167,7 +167,12 @@ itemData *newVariable( char *str, int len, content_type what )
             if ( val >= INT_MAX ) {
                 syntax_err2( "newVariable", "Value greater than INT_MAX!" );
                 exit( EXIT_FAILURE );
+            } else if ( val <= INT_MIN ) {
+                syntax_err2( "newVariable", "Value less than INT_MIN!" );
+                exit( EXIT_FAILURE );
             }
+
+
             coeff = ( int ) val;
 
             var = *endptr;
@@ -193,10 +198,15 @@ itemData *newVariable( char *str, int len, content_type what )
 
             if ( *str == '-' ) {
                 coeff = -1;
+                str++;
+            } else if ( *str == '+' ){
+                coeff = 1;
+                str++;
             } else {
                 coeff = 1;
             }
-            var = *( str + 1 );
+
+            var = *str;
             if ( !accepted_var( var ) ) {
                 syntax_err2( "newVariable", "A variable can only be used once in an expression!" );
                 exit( EXIT_FAILURE );
@@ -241,7 +251,11 @@ itemData *newVariable( char *str, int len, content_type what )
             if ( val >= INT_MAX ) {
                 syntax_err2( "newVariable", "Value greater than INT_MAX!" );
                 exit( EXIT_FAILURE );
+            } else if ( val <= INT_MIN ) {
+                syntax_err2( "newVariable", "Value less than INT_MIN!" );
+                exit( EXIT_FAILURE );
             }
+
             coeff = ( int ) val;
             var = 0;
             if ( !accepted_var( var ) ) {
