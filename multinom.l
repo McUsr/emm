@@ -123,6 +123,17 @@ rightp ")"
 
 %%
 
+/* TODO: factor into a fitting module */
+void list2table( itemData *listHead, itemData **itemTable )
+{
+    itemData *itemPtr = listHead ;
+    itemPtr = itemPtr->next ;
+    int k = 0 ;
+    while (itemPtr != NULL ) {
+        itemTable[k++] = itemPtr ;
+        itemPtr = itemPtr->next ;
+    }
+}
 
 int yywrap( void )
 {
@@ -320,13 +331,8 @@ int main( int argc, char *argv[] )
                 fprintf( stderr, "itemTable: Out of memory: %s, exiting\n",strerror(errno) );
                 exit( EXIT_FAILURE );
             }
-            itemPtr = &itemsHead ;
-            itemPtr = itemPtr->next ;
-            int k = 0 ;
-            while (itemPtr != NULL ) {
-                itemTable[k++] = itemPtr ;
-                itemPtr = itemPtr->next ;
-            }
+
+            list2table( &itemsHead, itemTable );
 
             LOG( "STATUS == ACCEPT POWER:  we got %d items in the table:\n", nritems );
             LOG( "And we got %d varss  and %d operrators in the table:\n", nrvars, nrops );
