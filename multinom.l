@@ -317,7 +317,6 @@ int main( int argc, char *argv[] )
             char *vars = NULL, *ops = NULL;
             int *coeffs = NULL, exponent = 0;
 
-            PARSING_STAGE = false;
 
             if (NO_PREPROC ) {
                 printf( " =\n" );
@@ -331,7 +330,7 @@ int main( int argc, char *argv[] )
                 fprintf( stderr, "itemTable: Out of memory: %s, exiting\n",strerror(errno) );
                 exit( EXIT_FAILURE );
             }
-
+            PARSING_STAGE = false;
             list2table( &itemsHead, itemTable );
 
             LOG( "STATUS == ACCEPT POWER:  we got %d items in the table:\n", nritems );
