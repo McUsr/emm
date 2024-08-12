@@ -273,6 +273,7 @@ int main( int argc, char *argv[] )
     while ( ( item_type = yylex(  ) ) != 0 ) {
         if ( ( end_cond = validator( item_type, &nrvars, &nrops, &nritems ) ) == OK ) {
             consumed_text += yyleng;
+#ifdef TEST_EVENT_LOOP
             LOG( "STATUS == OK " );
             switch ( item_type ) {
             case OPERAND:
@@ -287,6 +288,7 @@ int main( int argc, char *argv[] )
             default:
                 LOG( "\n" );
             }
+#endif
             switch ( item_type ) {
             case OPERAND:
             case OPERATOR:
